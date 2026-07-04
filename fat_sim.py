@@ -13,7 +13,6 @@ RESERVED = -2
 
 
 class FileNode:
-    """文件控制块 (FCB) / 目录节点"""
 
     def __init__(self, name, is_dir, start_block, size=0, parent=None):
         self.name = name
@@ -25,7 +24,6 @@ class FileNode:
 
 
 class FATFileSystem:
-    """底层 FAT 文件系统"""
 
     def __init__(self):
         self.fat = [FREE] * TOTAL_BLOCKS
@@ -62,12 +60,11 @@ class FATSimulatorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("FAT 文件系统模拟器")
-        self.root.geometry("1100x550")  # 加宽窗口以容纳更多列
+        self.root.geometry("1100x550")
 
         self.fs = FATFileSystem()
         self.current_dir = self.fs.root
 
-        # 左侧加宽到 600
         self.left_frame = tk.Frame(self.root, width=600)
         self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         self.right_frame = tk.Frame(self.root)
@@ -87,12 +84,10 @@ class FATSimulatorApp:
         return "/" + "/".join(path[1:]) if len(path) > 1 else "/"
 
     def setup_ui(self):
-        # --- 左侧：路径与增强型数据表格 ---
         self.path_var = tk.StringVar()
         tk.Label(self.left_frame, textvariable=self.path_var, font=("Arial", 11, "bold"), fg="blue").pack(anchor=tk.W,
                                                                                                           pady=5)
 
-        # 【优化4】增加 Name 和 FullPath 列，改为纯表格模式 (show="headings")
         self.tree = ttk.Treeview(self.left_frame, columns=("Name", "Type", "Size", "Block", "FullPath"),
                                  show="headings")
         self.tree.heading("Name", text="文件名")
@@ -111,21 +106,18 @@ class FATSimulatorApp:
         self.tree.bind("<<TreeviewSelect>>", self.on_select_file)
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        # 按钮区 1
         btn_frame1 = tk.Frame(self.left_frame)
         btn_frame1.pack(fill=tk.X, pady=5)
         tk.Button(btn_frame1, text="创建文件", command=self.create_file, bg="#e0f7fa").pack(side=tk.LEFT, padx=2)
         tk.Button(btn_frame1, text="创建目录", command=self.create_dir, bg="#dcedc8").pack(side=tk.LEFT, padx=2)
         tk.Button(btn_frame1, text="返回上级目录 (..)", command=self.go_up_dir, bg="#ffe082").pack(side=tk.LEFT, padx=2)
 
-        # 按钮区 2
         btn_frame2 = tk.Frame(self.left_frame)
         btn_frame2.pack(fill=tk.X, pady=5)
         tk.Button(btn_frame2, text="复制文件", command=self.copy_file, bg="#fff9c4").pack(side=tk.LEFT, padx=2)
         tk.Button(btn_frame2, text="删除选中", command=self.delete_item, bg="#ffcdd2").pack(side=tk.LEFT, padx=2)
         tk.Button(btn_frame2, text="格式化磁盘", command=self.format_disk, bg="#cfd8dc").pack(side=tk.LEFT, padx=2)
 
-        # --- 右侧：磁盘网格 ---
         tk.Label(self.right_frame, text="磁盘物理扇区 (16x16 = 256盘块)", font=("Arial", 12, "bold")).pack(anchor=tk.W)
         self.canvas = tk.Canvas(self.right_frame, width=400, height=400, bg="white")
         self.canvas.pack(pady=10)
@@ -149,7 +141,6 @@ class FATSimulatorApp:
         tk.Label(legend_frame, text="■ 选中", fg="deepskyblue").pack(side=tk.LEFT, padx=2)
 
     def update_tree_view(self):
-        """刷新列表内容并组装完整路径"""
         for item in self.tree.get_children():
             self.tree.delete(item)
 
@@ -158,11 +149,9 @@ class FATSimulatorApp:
 
         for node in self.current_dir.children:
             type_str = "<DIR>" if node.is_dir else "FILE"
-            # 拼接该文件的绝对路径
             sep = "" if current_path_str == "/" else "/"
             full_path = f"{current_path_str}{sep}{node.name}"
 
-            # 按新列顺序插入: Name, Type, Size, Block, FullPath
             self.tree.insert("", tk.END, values=(node.name, type_str, node.size, node.start_block, full_path))
 
     def update_disk_view(self, selected_start_block=None):
@@ -224,23 +213,21 @@ class FATSimulatorApp:
         new_dir = FileNode(name, True, start_block, size=BLOCK_SIZE, parent=self.current_dir)
         self.current_dir.children.append(new_dir)
 
-        # 【优化3】自动进入刚刚创建的目录
         self.current_dir = new_dir
         self.update_tree_view()
         self.update_disk_view()
 
     def create_file(self):
-        """【优化1】自定义弹窗：在一个窗口里同时填入名称和大小"""
         dialog = tk.Toplevel(self.root)
         dialog.title("创建新文件")
         dialog.geometry("300x160")
-        dialog.transient(self.root)  # 保持在主窗口之上
-        dialog.grab_set()  # 模态对话框，阻断其他操作
+        dialog.transient(self.root)
+        dialog.grab_set()
 
         tk.Label(dialog, text="文件名称:").place(x=20, y=20)
         name_entry = tk.Entry(dialog, width=20)
         name_entry.place(x=100, y=20)
-        name_entry.focus()  # 自动获取焦点
+        name_entry.focus()
 
         tk.Label(dialog, text="文件大小(B):").place(x=20, y=60)
         size_entry = tk.Entry(dialog, width=20)
@@ -267,10 +254,9 @@ class FATSimulatorApp:
 
         tk.Button(dialog, text="确定创建", command=on_confirm, bg="#b3e5fc").place(x=110, y=110)
 
-        # 阻塞等待窗口关闭
         self.root.wait_window(dialog)
 
-        if not result_data: return  # 用户直接关闭了弹窗
+        if not result_data: return
 
         name = result_data['name']
         size = result_data['size']
@@ -291,7 +277,6 @@ class FATSimulatorApp:
         self.update_tree_view()
         self.update_disk_view()
 
-        # 【优化2】反馈明确的创建路径
         current_path_str = self.get_current_path()
         sep = "" if current_path_str == "/" else "/"
         full_created_path = f"{current_path_str}{sep}{name}"
